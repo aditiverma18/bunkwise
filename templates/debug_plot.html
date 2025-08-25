@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}PDF Debug Plot{% endblock %}
+{% block content %}
+    <h2 class="text-center">PDF Visual Debugger</h2>
+    <p class="text-center">Use the axes on this plot to find the correct coordinates for your timetable.</p>
+    <div class="card p-3 my-4">
+        <p><strong>How to read the plot:</strong></p>
+        <ul>
+            <li>Look at the numbers on the X-axis (bottom) and Y-axis (left).</li>
+            <li><strong>table_areas:</strong> Find the coordinates for the top-left and bottom-right corners of the main table area.</li>
+            <li><strong>columns:</strong> Find the X-coordinate for each of the vertical lines that separate your days.</li>
+        </ul>
+        <img src="{{ plot_url }}" alt="Camelot Debug Plot" class="img-fluid">
+    </div>
+    <div class="text-center">
+        <a href="{{ url_for('debug_pdf') }}" class="btn btn-secondary">Try another file</a>
+    </div>
+{% endblock %}

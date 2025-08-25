@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}PDF Debugger{% endblock %}
+{% block content %}
+    <h2 class="text-center">PDF Timetable Debugger</h2>
+    <p class="text-center">Upload your PDF here to see the raw extracted table data in your Flask terminal.</p>
+    <div class="card p-4 mx-auto" style="max-width: 500px;">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="file" class="form-label">Select PDF File</label>
+                <input type="file" class="form-control" name="file" accept=".pdf" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Debug PDF</button>
+        </form>
+    </div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BunkWise - Attendance Predictor</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <h1 class="text-center mb-4">BunkWise</h1>
+    <form method="POST" action="/upload_timetable" enctype="multipart/form-data">
+  <div class="mb-3">
+   <label for="timetableFile" class="form-label">Select Timetable File (CSV or PDF)</label>
+   <input type="file" class="form-control" id="timetableFile" name="file" required accept=".csv,.pdf">
+  </div>
+  <button type="submit" class="btn btn-primary">Upload</button>
+</form>
+  </div>
+<div>
+  <a href="/authorize" class="btn btn-primary">Connect Google Calendar</a>
+</div>
+</body>
+</html>

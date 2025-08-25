@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+
+{% block title %}mark_attendance - BunkWise{% endblock %}
+
+{% block content %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mark Attendance</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        /* Custom styles for better spacing and appearance */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 900px; /* Increased max-width for timetable */
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        h2, h3 {
+            color: #343a40;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+        .table-timetable th {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+            text-align: center;
+        }
+        .table-timetable td {
+            vertical-align: middle;
+            padding: 10px;
+            min-width: 120px; /* Ensure cells have enough width */
+            height: 80px; /* Fixed height for class slots */
+            border-radius: 8px; /* Rounded corners for table cells */
+            text-align: center;
+            font-size: 0.9em;
+            position: relative; /* For subject text positioning */
+        }
+        .table-timetable td.time-col {
+            background-color: #e9ecef;
+            font-weight: bold;
+            color: #495057;
+            min-width: 80px;
+        }
+        .table-timetable tr:hover {
+            background-color: #f1f1f1;
+        }
+        .class-slot {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+        .class-subject {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #0056b3;
+        }
+        .radio-group label {
+            margin-right: 10px;
+            font-size: 0.9em;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+        }
+        .radio-group input[type="radio"] {
+            margin-right: 3px;
+            transform: scale(1.1);
+        }
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+            padding: 10px 25px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .btn-success:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            padding: 8px 20px;
+            border-radius: 10px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+        .alert {
+            border-radius: 10px;
+        }
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+                border-radius: 10px;
+            }
+            .table-responsive {
+                overflow-x: auto;
+            }
+            .table-timetable td {
+                min-width: 100px;
+                height: 70px;
+                padding: 5px;
+                font-size: 0.85em;
+            }
+            .radio-group label {
+                margin-right: 5px;
+                font-size: 0.8em;
+            }
+            .radio-group input[type="radio"] {
+                transform: scale(1.0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <h2 class="text-center">✅ Mark Attendance</h2>
+        <div class="card p-3 my-4">
+    <div class="row align-items-end">
+        <div class="col-md-6">
+            <label for="attendanceDate" class="form-label"><b>Select Date to Mark Attendance</b></label>
+            <input type="date" class="form-control" id="attendanceDate" value="{{ selected_date }}">
+        </div>
+    </div>
+</div>
+
+<script>
+    // This script will redirect the user when they pick a new date
+    document.getElementById('attendanceDate').addEventListener('change', function() {
+        // 'this.value' is the new date selected, e.g., "2025-08-05"
+        window.location.href = '/mark_attendance/' + this.value;
+    });
+</script>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mt-3">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" class="mt-4">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover table-timetable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            {% for day in all_days %}
+                                <th>{{ day }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if all_times and all_days %}
+                            {% for time in all_times %}
+                                <tr>
+                                    <td class="time-col">{{ time }}</td>
+                                    {% for day in all_days %}
+                                        <td>
+                                            {% set class_info = timetable_grid.get(day, {}).get(time) %}
+                                            {% if class_info %}
+                                                <div class="class-slot">
+                                                    <span class="class-subject">{{ class_info.Subject }}</span>
+                                                    <div class="radio-group">
+                                                        <input type="radio" id="present_{{ class_info.id }}" name="status_{{ class_info.id }}" value="Present" required>
+                                                        <label for="present_{{ class_info.id }}">P</label>
+
+                                                        <input type="radio" id="absent_{{ class_info.id }}" name="status_{{ class_info.id }}" value="Absent" required>
+                                                        <label for="absent_{{ class_info.id }}">A</label>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <!-- Empty slot if no class at this time/day -->
+                                                <span class="text-muted">--</span>
+                                            {% endif %}
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="{{ all_days|length + 1 }}" class="text-center text-muted">
+                                    No timetable data available. Please upload a timetable first.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-center mt-3">
+                <button type="submit" class="btn btn-success">Submit Attendance</button>
+            </div>
+        </form>
+
+        <div class="text-center mb-4">
+        <a href="{{ url_for('attendance_summary') }}" class="btn btn-primary">View Summary by Subject</a>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('view_current_timetable') }}" class="btn btn-primary">⬅ Back to Timetable View</a>
+        </div>
+    </div>
+</body>
+</html>
+{% endblock %}

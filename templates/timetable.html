@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Timetable - BunkWise{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px;">
+    <div class="text-center">
+        <h2>Timetable Upload</h2>
+        <p class="lead">Upload your class schedule to get started.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} mt-3">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card p-4 my-4">
+        <form method="POST" action="{{ url_for('upload_timetable') }}" enctype="multipart/form-data">
+            <div class="mb-3">
+               <label for="timetableFile" class="form-label">Select Timetable File (CSV or PDF)</label>
+               <input type="file" class="form-control" id="timetableFile" name="file" required accept=".csv,.pdf">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Upload Timetable</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

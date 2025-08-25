@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block title %}Your Timetable - BunkWise{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-center mb-4">Your Current Timetable</h2>
+    <div class="card p-3">
+        {{ table_html | safe }}
+    </div>
+</div>
+{% endblock %}

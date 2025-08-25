@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Important Events - BunkWise{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Form to Add New Event -->
+    <div class="col-md-4">
+        <h3>Add New Event</h3>
+        <div class="card p-3">
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="subject" class="form-label">Subject</label>
+                    <select id="subject" name="subject" class="form-select" required>
+                        <option value="" disabled selected>Select a Subject</option>
+                        {% for subject in subjects %}
+                            <option value="{{ subject }}">{{ subject }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="event_type" class="form-label">Event Type</label>
+                    <select id="event_type" name="event_type" class="form-select" required>
+                        <option value="Test">Test</option>
+                        <option value="Submission">Submission</option>
+                        <option value="Presentation">Presentation</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="event_date" class="form-label">Date</label>
+                    <input type="date" class="form-control" id="event_date" name="event_date" required>
+                </div>
+                <div class="mb-3">
+                    <label for="notes" class="form-label">Notes (Optional)</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Add Event</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- List of Upcoming Events -->
+    <div class="col-md-8">
+        <h3>Your Upcoming Events</h3>
+        {% if events %}
+            <ul class="list-group">
+                {% for event in events %}
+                    <li class="list-group-item">
+                        <strong>{{ event.event_date }}</strong> - {{ event.event_type }} for <em>{{ event.subject }}</em>
+                        {% if event.notes %}<p class="mb-0 text-muted small">{{ event.notes }}</p>{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="alert alert-info">You haven't added any important events yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
