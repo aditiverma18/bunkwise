@@ -33,10 +33,11 @@
 
 <div class="dashboard-grid">
      <a href="{{ url_for('mark_attendance_today') }}" class="dashboard-btn">MARK ATTENDANCE</a> <a href="{{ url_for('attendance_summary') }}" class="dashboard-btn">ATTENDANCE SUMMARY</a>
-    <a href="{{ url_for('attendance_summary') }}" class="dashboard-btn">ATTENDANCE SUMMARY</a>
     <a href="{{ url_for('settings') }}" class="dashboard-btn">ATTENDANCE SETTINGS</a>
     <a href="#" class="dashboard-btn" style="background-color: #6c757d;">RESCHEDULE CLASS (soon)</a>
     <a href="{{ url_for('view_current_timetable') }}" class="dashboard-btn">VIEW TIMETABLE</a>
     <a href="{{ url_for('events') }}" class="dashboard-btn">ADD EVENTS</a>
+    <a href="{{ url_for('upload_timetable') }}" class="dashboard-btn">UPLOAD TIMETABLE</a> <a href="{{ url_for('mark_attendance_today') }}" class="dashboard-btn">MARK ATTENDANCE</a>
+    <a href="{{ url_for('attendance_summary') }}" class="dashboard-btn">ATTENDANCE SUMMARY</a>
 </div>
 {% endblock %}

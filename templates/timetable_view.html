@@ -5,8 +5,27 @@
 {% block content %}
 <div class="container">
     <h2 class="text-center mb-4">Your Current Timetable</h2>
-    <div class="card p-3">
-        {{ table_html | safe }}
-    </div>
+
+    {% if pdf_url %}
+        <div class="card mb-4">
+            <div class="card-header">
+                Original PDF View
+            </div>
+            <div class="card-body p-0" style="height: 80vh;">
+                <iframe src="{{ pdf_url }}" width="100%" height="100%" style="border: none;"></iframe>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if table_html %}
+        <div class="card">
+            <div class="card-header">
+                Parsed Table View
+            </div>
+            <div class="card-body">
+                {{ table_html | safe }}
+            </div>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}
