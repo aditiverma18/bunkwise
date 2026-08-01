@@ -17,6 +17,8 @@ from datetime import datetime, date, timedelta
 import fitz  # PyMuPDF
 import re
 import time as time_module
+from services.models import LectureContext, AcademicEvent
+from services.recommendation_engine import RecommendationEngine
 
 app = Flask(__name__)
 app.secret_key = 'asdfghjkl'  # consider using env var for production
@@ -26,8 +28,8 @@ CLIENT_SECRETS_FILE = "credentials.json"
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
 # --- Database setup (keep your connection string secure in env var for prod) ---
-client = MongoClient("mongodb+srv://10caditiverma:ZGzxoFRG8YEEpfz4@cluster1.jvmwija.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1")
-db = client['attendance_app_db']
+client = MongoClient("mongodb+srv://10caditiverma:uibIhItOE0qh4Dmf@cluster0.jvmwija.mongodb.net/?appName=Cluster0")
+db = client['attendance_app_db']  #uibIhItOE0qh4Dmf
 users_collection = db['users']
 timetables_collection = db['timetables']
 settings_collection = db['settings']
@@ -734,24 +736,104 @@ def predict_bunk(subject_name):
     current_bunks = classes_held_so_far - classes_attended
 
     max_allowed_bunks = math.floor(net_total_classes * (1 - (min_percent / 100)))
-
-    is_safe = current_bunks < max_allowed_bunks
     bunks_remaining = max_allowed_bunks - current_bunks
+
     if bunks_remaining < 0:
         bunks_remaining = 0
 
-    # check events for today
-    today_str = datetime.now().strftime('%Y-%m-%d')
-    important_event = events_collection.find_one({
-        "user_id": user_id,
-        "subject": subject_name,
-        "event_date": today_str
-    })
+    # ---------------- Attendance Pattern ----------------
 
-    event_warning = None
-    if important_event:
-        event_warning = f"Warning: You have a '{important_event['event_type']}' scheduled today!"
-        is_safe = False
+    attendance_pattern = [
+        "P" if log["status"] == "Present" else "A"
+        for log in logs
+    ]
+
+    # ---------------- Academic Events ----------------
+
+    events = list(
+        events_collection.find({
+            "user_id": user_id,
+            "subject": subject_name
+        })
+    )
+
+    academic_events = []
+
+    for event in events:
+
+        academic_events.append(
+
+            AcademicEvent(
+
+                title=event.get("notes", event["event_type"]),
+
+                subject=event["subject"],
+
+                event_type=event["event_type"],
+
+                event_date=datetime.strptime(
+                    event["event_date"],
+                    "%Y-%m-%d"
+                ).date(),
+
+                priority="HIGH"
+            )
+
+        )
+
+    # ---------------- Recommendation Context ----------------
+
+    context = LectureContext(
+
+        subject=subject_name,
+
+        lecture_date=date.today(),
+
+        start_time=datetime.now().time(),
+
+        end_time=datetime.now().time(),
+
+        classes_attended=classes_attended,
+
+        classes_conducted=classes_held_so_far,
+
+        minimum_required=min_percent,
+
+        remaining_bunks=bunks_remaining,
+
+        upcoming_events=academic_events,
+
+        attendance_pattern=attendance_pattern
+    )
+
+    # ---------------- Decision Engine ----------------
+
+    engine = RecommendationEngine()
+
+    decision = engine.evaluate(context)
+
+    # ---------------- Response ----------------
+
+    return {
+
+        "subject": subject_name,
+
+        "recommendation": decision.recommendation,
+
+        "confidence": decision.confidence,
+
+        "risk": decision.risk,
+
+        "current_attendance": decision.current_attendance,
+
+        "after_attend": decision.projected_if_attend,
+
+        "after_skip": decision.projected_if_skip,
+
+        "remaining_bunks": decision.remaining_bunks,
+
+        "reasons": decision.reasons
+    }
 
     return {
         "subject": subject_name,
