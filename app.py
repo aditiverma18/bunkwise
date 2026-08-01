@@ -19,6 +19,11 @@ import re
 import time as time_module
 from services.models import LectureContext, AcademicEvent
 from services.recommendation_engine import RecommendationEngine
+import os
+from dotenv import load_dotenv
+from pymongo import MongoClient
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'asdfghjkl'  # consider using env var for production
@@ -28,7 +33,7 @@ CLIENT_SECRETS_FILE = "credentials.json"
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
 # --- Database setup (keep your connection string secure in env var for prod) ---
-client = MongoClient("mongodb+srv://10caditiverma:uibIhItOE0qh4Dmf@cluster0.jvmwija.mongodb.net/?appName=Cluster0")
+client = MongoClient(os.getenv("MONGODB_URI"))
 db = client['attendance_app_db']  #uibIhItOE0qh4Dmf
 users_collection = db['users']
 timetables_collection = db['timetables']
