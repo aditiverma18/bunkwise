@@ -40,6 +40,7 @@ timetables_collection = db['timetables']
 settings_collection = db['settings']
 attendance_log_collection = db['attendance_log']
 events_collection = db['events']
+timetable_preview_collection = db["timetable_previews"]
 
 # --- Login manager ---
 login_manager = LoginManager()
@@ -128,7 +129,40 @@ def normalize_time_str(t_str):
             return f"{s1[:2]}:{s1[2:4]}"
 
     return s  # fallback: return original-ish
+def normalize_day_name(day):
+    """
+    Converts different day formats into a standard day name.
+    """
 
+    day = day.strip().lower()
+
+    mapping = {
+        "mon": "Monday",
+        "monday": "Monday",
+
+        "tue": "Tuesday",
+        "tues": "Tuesday",
+        "tuesday": "Tuesday",
+
+        "wed": "Wednesday",
+        "wednesday": "Wednesday",
+
+        "thu": "Thursday",
+        "thur": "Thursday",
+        "thurs": "Thursday",
+        "thursday": "Thursday",
+
+        "fri": "Friday",
+        "friday": "Friday",
+
+        "sat": "Saturday",
+        "saturday": "Saturday",
+
+        "sun": "Sunday",
+        "sunday": "Sunday"
+    }
+
+    return mapping.get(day)
 def sort_time_slots(slots):
     # slots are strings like "HH:MM - HH:MM" or possibly other formats
     def key_fn(ts):
@@ -457,6 +491,7 @@ def index():
 @app.route('/upload_timetable', methods=['GET', 'POST'])
 @login_required
 def upload_timetable():
+
     if 'file' not in request.files or request.files['file'].filename == '':
         flash('No file selected', 'error')
         return redirect(url_for('index'))
@@ -465,81 +500,207 @@ def upload_timetable():
     filename = file.filename
 
     try:
+
         df = None
+
+        # ---------------- CSV ----------------
+
         if filename.lower().endswith('.csv'):
-            # read CSV from file stream
+
             try:
-                # If the file is small, read directly
                 df = pd.read_csv(file)
-            except Exception as e:
-                # fallback: read bytes then decode
+
+            except Exception:
+
                 file.stream.seek(0)
                 content = file.read()
                 df = pd.read_csv(io.BytesIO(content))
+
+        # ---------------- PDF ----------------
+
         elif filename.lower().endswith('.pdf'):
-            # read bytes and parse
+
             file.stream.seek(0)
             pdf_bytes = file.read()
+
             df = parse_timetable_from_pdf_bytes(pdf_bytes)
+
             if df is None:
-                flash('Could not parse a timetable from the PDF. Try a CSV or ensure the PDF has a clear table or time/subject layout.', 'error')
+
+                flash(
+                    'Could not parse timetable from PDF.',
+                    'error'
+                )
+
                 return redirect(url_for('index'))
+
         else:
-            flash('Invalid file type. Please upload a CSV or PDF.', 'error')
+
+            flash(
+                'Invalid file type. Please upload a PDF or CSV.',
+                'error'
+            )
+
             return redirect(url_for('index'))
 
-        required_columns = ['Day', 'Start Time', 'End Time', 'Subject']
+        # ---------------- Validate ----------------
+
+        required_columns = [
+            'Day',
+            'Start Time',
+            'End Time',
+            'Subject'
+        ]
+
         if not all(col in df.columns for col in required_columns):
-            flash(f"File must contain columns: {', '.join(required_columns)}", 'error')
+
+            flash(
+                f"File must contain columns: {', '.join(required_columns)}",
+                'error'
+            )
+
             return redirect(url_for('index'))
+
+        # ---------------- Build Timetable Grid ----------------
 
         timetable_grid = {}
+
         unique_days = set()
         unique_times = set()
 
-        for index, row in df.iterrows():
-            raw_day = str(row['Day']).strip()
+        for _, row in df.iterrows():
+
+            raw_day = str(row["Day"]).strip()
+
             day = normalize_day_name(raw_day)
+
             if day is None:
-                 continue
-            start_time = normalize_time_str(str(row['Start Time']).strip())
-            end_time = normalize_time_str(str(row['End Time']).strip())
-            subject = str(row['Subject']).strip()
+                continue
+
+            start_time = normalize_time_str(
+                str(row["Start Time"]).strip()
+            )
+
+            end_time = normalize_time_str(
+                str(row["End Time"]).strip()
+            )
+
+            subject = str(row["Subject"]).strip()
+
             time_slot = f"{start_time} - {end_time}"
-            class_id = f"{day}_{start_time.replace(':', '')}-{end_time.replace(':', '')}_{sanitize_subject(subject)}"
+
+            class_id = (
+                f"{day}_"
+                f"{start_time.replace(':','')}-"
+                f"{end_time.replace(':','')}_"
+                f"{sanitize_subject(subject)}"
+            )
 
             if day not in timetable_grid:
                 timetable_grid[day] = {}
 
-            timetable_grid[day][time_slot] = {"Subject": subject, "id": class_id}
+            timetable_grid[day][time_slot] = {
+                "Subject": subject,
+                "id": class_id
+            }
+
             unique_days.add(day)
             unique_times.add(time_slot)
 
-        sorted_days = sorted(list(unique_days), key=get_day_order)
-        sorted_times = sort_time_slots(list(unique_times))
+        sorted_days = sorted(
+            list(unique_days),
+            key=get_day_order
+        )
 
-        user_id = ObjectId(current_user.id)
-        timetables_collection.delete_many({"user_id": user_id})
+        sorted_times = sort_time_slots(
+            list(unique_times)
+        )
 
-        timetables_collection.insert_one({
-            "user_id": user_id,
+        # ---------------- Store Preview ----------------
+
+        session["preview"] = {
+
             "grid": timetable_grid,
-            "days": sorted_days,
-            "times": sorted_times,
-            "html_table": df.to_html(classes='table table-bordered table-striped'),
-            "uploaded_at": datetime.utcnow(),
-            "filename": filename
-        })
 
-        flash('Timetable uploaded and stored successfully!', 'success')
-        return redirect(url_for('mark_attendance_today'))
+            "days": sorted_days,
+
+            "times": sorted_times,
+
+            "filename": filename
+
+        }
+
+        return redirect(url_for("preview_timetable"))
 
     except Exception as e:
-        print(f"AN ERROR OCCURRED IN UPLOAD: {e}")
-        flash(f'Error processing file: {e}', 'error')
-        return redirect(url_for('index'))
 
+        print(f"UPLOAD ERROR: {e}")
 
+        flash(
+            f"Error processing file: {e}",
+            "error"
+        )
+
+        return redirect(url_for("index"))
+    
+@app.route("/preview_timetable")
+@login_required
+def preview_timetable():
+
+    preview = session.get("preview")
+
+    if preview is None:
+        flash("No timetable to preview.", "error")
+        return redirect(url_for("index"))
+
+    return render_template(
+        "preview_timetable.html",
+        preview=preview
+    )
+
+@app.route("/confirm_timetable", methods=["POST"])
+@login_required
+def confirm_timetable():
+
+    preview = session.get("preview")
+
+    if preview is None:
+
+        flash("Nothing to upload.", "error")
+
+        return redirect(url_for("index"))
+
+    user_id = ObjectId(current_user.id)
+
+    timetables_collection.delete_many({
+        "user_id": user_id
+    })
+
+    timetables_collection.insert_one({
+
+        "user_id": user_id,
+
+        "grid": preview["grid"],
+
+        "days": preview["days"],
+
+        "times": preview["times"],
+
+        "filename": preview["filename"],
+
+        "uploaded_at": datetime.utcnow()
+
+    })
+
+    session.pop("preview", None)
+
+    flash(
+        "Timetable uploaded successfully!",
+        "success"
+    )
+
+    return redirect(url_for("mark_attendance_today"))
+    
 # --- (rest of your routes remain mostly unchanged) ---
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required

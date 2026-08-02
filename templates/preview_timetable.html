@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+<h2>Preview Timetable</h2>
+
+{% for day in preview.days %}
+
+<div class="card mt-3">
+
+<div class="card-header">
+
+<strong>{{ day }}</strong>
+
+</div>
+
+<div class="card-body">
+
+{% for slot in preview.times %}
+
+{% if slot in preview.grid[day] %}
+
+<p>
+
+<strong>{{ slot }}</strong>
+
+—
+
+{{ preview.grid[day][slot]["Subject"] }}
+
+</p>
+
+{% endif %}
+
+{% endfor %}
+
+</div>
+
+</div>
+
+{% endfor %}
+
+<br>
+
+<form action="{{ url_for('confirm_timetable') }}" method="POST">
+
+<button class="btn btn-success">
+
+Confirm Upload
+
+</button>
+
+</form>
+
+</div>
+
+{% endblock %}
