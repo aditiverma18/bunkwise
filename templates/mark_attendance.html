@@ -3,71 +3,242 @@
 {% block title %}Mark Attendance - BunkWise{% endblock %}
 
 {% block content %}
+
 <div class="container">
-    <h2 class="text-center">Mark Attendance</h2>
-    
-    <div class="card p-3 my-4">
+
+    <h2 class="text-center mb-4">Mark Attendance</h2>
+
+    <div class="card p-3 mb-4">
+
         <div class="row align-items-end">
+
             <div class="col-md-6">
-                <label for="attendanceDate" class="form-label"><b>Select Date to Mark Attendance</b></label>
-                <input type="date" class="form-control" id="attendanceDate" value="{{ selected_date }}">
+
+                <label for="attendanceDate" class="form-label">
+                    <b>Select Date</b>
+                </label>
+
+                <input
+                    type="date"
+                    class="form-control"
+                    id="attendanceDate"
+                    value="{{ selected_date }}"
+                >
+
             </div>
+
         </div>
+
     </div>
-    
+
     <script>
-        document.getElementById('attendanceDate').addEventListener('change', function() {
-            window.location.href = '/mark_attendance/' + this.value;
+
+        document.getElementById("attendanceDate").addEventListener("change", function () {
+
+            window.location.href = "/mark_attendance/" + this.value;
+
         });
+
     </script>
 
     <form method="POST">
+
         <div class="table-responsive">
-            <table class="table table-bordered text-center">
+
+            <table class="table table-bordered text-center align-middle">
+
                 <thead>
+
                     <tr class="table-dark">
+
                         <th>Time</th>
+
                         {% for day in all_days %}
+
                             <th>{{ day }}</th>
+
                         {% endfor %}
+
                     </tr>
+
                 </thead>
+
                 <tbody>
+
                     {% for time in all_times %}
-                        <tr>
-                            <td class="fw-bold">{{ time }}</td>
-                            {% for day in all_days %}
-                                <td>
-                                    {% set class_info = timetable_grid.get(day, {}).get(time) %}
-                                    {% if class_info %}
-                                        <div>
-                                            <strong>{{ class_info.Subject }}</strong>
-                                        </div>
-                                        <div class="radio-group mt-2">
-                                            {% set current_status = day_attendance.get(class_info.id) %}
-                                            
-                                            <input type="radio" class="btn-check" id="present_{{ class_info.id }}" name="status_{{ class_info.id }}" value="Present" autocomplete="off" {% if current_status == 'Present' %}checked{% endif %}>
-                                            <label class="btn btn-outline-success btn-sm" for="present_{{ class_info.id }}">P</label>
 
-                                            <input type="radio" class="btn-check" id="absent_{{ class_info.id }}" name="status_{{ class_info.id }}" value="Absent" autocomplete="off" {% if current_status == 'Absent' %}checked{% endif %}>
-                                            <label class="btn btn-outline-danger btn-sm" for="absent_{{ class_info.id }}">A</label>
+                    <tr>
 
-                                            <input type="radio" class="btn-check" id="cancelled_{{ class_info.id }}" name="status_{{ class_info.id }}" value="Cancelled" autocomplete="off" {% if current_status == 'Cancelled' %}checked{% endif %}>
-                                            <label class="btn btn-outline-secondary btn-sm" for="cancelled_{{ class_info.id }}">C</label>
-                                        </div>
-                                    {% else %}
-                                        --
-                                    {% endif %}
-                                </td>
-                            {% endfor %}
-                        </tr>
+                        <td class="fw-bold">
+
+                            {{ time }}
+
+                        </td>
+
+                        {% for day in all_days %}
+
+                        <td>
+
+                            {% set class_info = timetable_grid.get(day, {}).get(time) %}
+
+                            {% if class_info %}
+
+                                <div>
+
+                                    <strong>
+
+                                        {{ class_info.Subject }}
+
+                                    </strong>
+
+                                </div>
+
+                                {% if recommendations.get(class_info.id) %}
+
+                                    {% set rec = recommendations[class_info.id] %}
+
+                                    <div class="mt-2">
+
+                                        {% if rec.recommendation == "Attend" %}
+
+                                            <span class="badge bg-danger">
+
+                                                🔴 ATTEND
+
+                                            </span>
+
+                                        {% elif rec.recommendation == "Safe to Skip" %}
+
+                                            <span class="badge bg-success">
+
+                                                🟢 SAFE TO SKIP
+
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="badge bg-warning text-dark">
+
+                                                🟡 OPTIONAL
+
+                                            </span>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                    <small class="text-muted d-block">
+
+                                        Attendance: {{ rec.current_attendance }}%
+
+                                    </small>
+
+                                    <small class="text-muted d-block">
+
+                                        Confidence: {{ rec.confidence }}%
+
+                                    </small>
+
+                                {% endif %}
+
+                                <div class="radio-group mt-3">
+
+                                    {% set current_status = day_attendance.get(class_info.id) %}
+
+                                    <input
+                                        type="radio"
+                                        class="btn-check"
+                                        id="present_{{ class_info.id }}"
+                                        name="status_{{ class_info.id }}"
+                                        value="Present"
+                                        autocomplete="off"
+                                        {% if current_status == "Present" %}checked{% endif %}
+                                    >
+
+                                    <label
+                                        class="btn btn-outline-success btn-sm"
+                                        for="present_{{ class_info.id }}"
+                                    >
+
+                                        P
+
+                                    </label>
+
+                                    <input
+                                        type="radio"
+                                        class="btn-check"
+                                        id="absent_{{ class_info.id }}"
+                                        name="status_{{ class_info.id }}"
+                                        value="Absent"
+                                        autocomplete="off"
+                                        {% if current_status == "Absent" %}checked{% endif %}
+                                    >
+
+                                    <label
+                                        class="btn btn-outline-danger btn-sm"
+                                        for="absent_{{ class_info.id }}"
+                                    >
+
+                                        A
+
+                                    </label>
+
+                                    <input
+                                        type="radio"
+                                        class="btn-check"
+                                        id="cancelled_{{ class_info.id }}"
+                                        name="status_{{ class_info.id }}"
+                                        value="Cancelled"
+                                        autocomplete="off"
+                                        {% if current_status == "Cancelled" %}checked{% endif %}
+                                    >
+
+                                    <label
+                                        class="btn btn-outline-secondary btn-sm"
+                                        for="cancelled_{{ class_info.id }}"
+                                    >
+
+                                        C
+
+                                    </label>
+
+                                </div>
+
+                            {% else %}
+
+                                --
+
+                            {% endif %}
+
+                        </td>
+
+                        {% endfor %}
+
+                    </tr>
+
                     {% endfor %}
+
                 </tbody>
+
             </table>
+
         </div>
-        <div class="text-center mt-3">
-            <button type="submit" class="btn btn-primary btn-lg">Submit Attendance for {{ selected_date }}</button>
+
+        <div class="text-center mt-4">
+
+            <button
+                type="submit"
+                class="btn btn-primary"
+            >
+
+                Submit Attendance for {{ selected_date }}
+
+            </button>
+
         </div>
+
     </form>
+
 </div>
+
 {% endblock %}

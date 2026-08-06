@@ -823,11 +823,24 @@ def mark_attendance_for_date(date_str):
     day_attendance_cursor = attendance_log_collection.find({"user_id": user_id, "date": date_str})
     day_attendance = {item['class_id']: item['status'] for item in day_attendance_cursor}
 
+    recommendations = {}
+
+    for day in timetable_data["grid"]:
+        for slot, class_info in timetable_data["grid"][day].items():
+
+           prediction = predict_bunk_internal(
+            user_id,
+            class_info["Subject"]
+        )
+        if prediction is not None:
+           recommendations[class_info["id"]] = prediction
+
     return render_template('mark_attendance.html',
                            timetable_grid=timetable_data['grid'],
                            all_days=timetable_data['days'],
                            all_times=timetable_data['times'],
                            day_attendance=day_attendance,
+                           recommendations=recommendations,
                            selected_date=date_str)
 
 
@@ -871,50 +884,71 @@ def calculate_net_scheduled_classes(subject_name, timetable, start_date, end_dat
 
     return total_classes
 
+def predict_bunk_internal(user_id, subject_name):
 
-@app.route('/predict_bunk/<subject_name>')
-@login_required
-def predict_bunk(subject_name):
-    user_id = ObjectId(current_user.id)
     settings = settings_collection.find_one({"user_id": user_id})
     if not settings:
-        return {"error": "Settings not found. Please configure them first."}, 404
+        return None
 
-    min_percent = settings['min_attendance_percentage']
-    start_date = datetime.strptime(settings['semester_start_date'], '%Y-%m-%d')
-    end_date = datetime.strptime(settings['semester_end_date'], '%Y-%m-%d')
+    min_percent = settings["min_attendance_percentage"]
+
+    start_date = datetime.strptime(
+        settings["semester_start_date"],
+        "%Y-%m-%d"
+    )
+
+    end_date = datetime.strptime(
+        settings["semester_end_date"],
+        "%Y-%m-%d"
+    )
 
     timetable = timetables_collection.find_one({"user_id": user_id})
     if not timetable:
-        return {"error": "Timetable not found. Please upload one first."}, 404
+        return None
 
     holidays = get_semester_holidays()
     if holidays is None:
-        return {"error": "Google Calendar not authenticated."}, 401
+        return None
 
-    net_total_classes = calculate_net_scheduled_classes(subject_name, timetable, start_date, end_date, holidays)
+    net_total_classes = calculate_net_scheduled_classes(
+        subject_name,
+        timetable,
+        start_date,
+        end_date,
+        holidays
+    )
+
     if net_total_classes == 0:
-        return {"error": f"No classes found for subject '{subject_name}' in this semester."}, 404
+        return None
 
-    logs = list(attendance_log_collection.find({"subject": subject_name, "user_id": user_id}))
-    classes_attended = len([log for log in logs if log['status'] == 'Present'])
+    logs = list(
+        attendance_log_collection.find({
+            "subject": subject_name,
+            "user_id": user_id
+        })
+    )
+
+    classes_attended = len(
+        [log for log in logs if log["status"] == "Present"]
+    )
+
     classes_held_so_far = len(logs)
+
     current_bunks = classes_held_so_far - classes_attended
 
-    max_allowed_bunks = math.floor(net_total_classes * (1 - (min_percent / 100)))
+    max_allowed_bunks = math.floor(
+        net_total_classes * (1 - (min_percent / 100))
+    )
+
     bunks_remaining = max_allowed_bunks - current_bunks
 
     if bunks_remaining < 0:
         bunks_remaining = 0
 
-    # ---------------- Attendance Pattern ----------------
-
     attendance_pattern = [
         "P" if log["status"] == "Present" else "A"
         for log in logs
     ]
-
-    # ---------------- Academic Events ----------------
 
     events = list(
         events_collection.find({
@@ -947,8 +981,6 @@ def predict_bunk(subject_name):
 
         )
 
-    # ---------------- Recommendation Context ----------------
-
     context = LectureContext(
 
         subject=subject_name,
@@ -970,15 +1002,12 @@ def predict_bunk(subject_name):
         upcoming_events=academic_events,
 
         attendance_pattern=attendance_pattern
-    )
 
-    # ---------------- Decision Engine ----------------
+    )
 
     engine = RecommendationEngine()
 
     decision = engine.evaluate(context)
-
-    # ---------------- Response ----------------
 
     return {
 
@@ -999,25 +1028,26 @@ def predict_bunk(subject_name):
         "remaining_bunks": decision.remaining_bunks,
 
         "reasons": decision.reasons
+
     }
 
-    return {
-        "subject": subject_name,
-        "is_safe_to_bunk": is_safe,
-        "event_warning": event_warning,
-        "bunks_remaining": bunks_remaining,
-        "current_attendance_stats": {
-            "attended": classes_attended,
-            "held_so_far": classes_held_so_far,
-            "current_bunks": current_bunks,
-            "max_allowed_bunks": max_allowed_bunks
-        },
-        "semester_stats": {
-            "total_net_classes": net_total_classes,
-            "min_percentage_req": min_percent
-        }
-    }
+@app.route("/predict_bunk/<subject_name>")
+@login_required
+def predict_bunk(subject_name):
 
+    user_id = ObjectId(current_user.id)
+
+    prediction = predict_bunk_internal(
+        user_id,
+        subject_name
+    )
+
+    if prediction is None:
+        return {
+            "error": "Unable to generate recommendation."
+        }, 400
+
+    return prediction
 
 @app.route('/events', methods=['GET', 'POST'])
 @login_required
